@@ -517,57 +517,73 @@ def build_smart_pool():
 
 
 # Google Drive 上傳功能 - 使用 OAuth Refresh Token
-def upload_to_google_drive(csv_filename, folder_id='1vPeUEL5K-g8R7sGjLunzvx3hs8iOL5LN'):
+def upload_to_google_drive(csv_filename, folder_id="1vPeUEL5K-g8R7sGjLunzvx3hs8iOL5LN"):
     try:
-        import requests, json as json_lib
-        client_id = os.environ.get('GOOGLE_CLIENT_ID')
-        client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
-        refresh_token = os.environ.get('GOOGLE_REFRESH_TOKEN')
+        import requests
+        import json as json_lib
+        client_id = os.environ.get("GOOGLE_CLIENT_ID")
+        client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+        refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN")
         if not all([client_id, client_secret, refresh_token]):
-            print("WARNING: GOOGLE_CLIENT_ID/CLIENT_SECRET/REFRESH_TOKEN not set")
+            print("WARNING: Missing GOOGLE credentials")
             return False
 
-        token_resp = requests.post('https://oauth2.googleapis.com/token', data={
-            'client_id': client_id,
-            'client_secret': client_secret,
-            'refresh_token': refresh_token,
-            'grant_type': 'refresh_token'
+        # Get access token
+        token_resp = requests.post("https://oauth2.googleapis.com/token", data={
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token"
         }, timeout=15)
         token_resp.raise_for_status()
-        access_token = token_resp.json()['access_token']
+        access_token = token_resp.json()["access_token"]
 
-        with open(csv_filename, 'rb') as f:
+        # Read file
+        with open(csv_filename, "rb") as f:
             file_content = f.read()
 
-        boundary = '----PythonFormBoundary7MA4YWxkTrZu0gW'
-        metadata = json_lib.dumps({'name': csv_filename, 'parents': [folder_id]})
-        body = (
-            f'--{boundary}\r\n'
-            f'Content-Type: application/json\r\n\r\n'
-            f'{metadata}\r\n'
-            f'--{boundary}\r\n'
-            f'Content-Type: text/csv\r\n\r\n'
-        ).encode() + file_content + f'\r\n--{boundary}--\r\n'.encode()
+        # Build multipart body manually
+        boundary = "----PythonFormBoundary7MA4YWxkTrZu0gW"
+        metadata = json_lib.dumps({"name": csv_filename, "parents": [folder_id]})
+        
+        body_part1 = ("--" + boundary + "
+"
+                     "Content-Type: application/json
+
+"
+                     + metadata + "
+"
+                     "--" + boundary + "
+"
+                     "Content-Type: text/csv
+
+").encode("utf-8")
+        
+        body_part2 = ("
+--" + boundary + "--
+").encode("utf-8")
+        body = body_part1 + file_content + body_part2
 
         headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": f"multipart/related; boundary={boundary}"
+            "Authorization": "Bearer " + access_token,
+            "Content-Type": "multipart/related; boundary=" + boundary
         }
 
         resp = requests.post(
-            'https://www.googleapis.com/upload/drive/v3/files',
+            "https://www.googleapis.com/upload/drive/v3/files",
             headers=headers,
             data=body,
             timeout=30
         )
         resp.raise_for_status()
-        file_id = resp.json().get('id', 'unknown')
-        print(f"DONE: Uploaded {csv_filename} to Google Drive, ID: {file_id}")
+        file_id = resp.json().get("id", "unknown")
+        print("DONE: Uploaded " + csv_filename + " to Google Drive, ID: " + file_id)
         return True
 
     except Exception as e:
-        print(f"ERROR: Google Drive upload failed: {str(e)}")
+        print("ERROR: Google Drive upload failed: " + str(e))
         return False
+
 if __name__ == "__main__":
     build_smart_pool()
     today_str = datetime.now().strftime("%Y%m%d")
