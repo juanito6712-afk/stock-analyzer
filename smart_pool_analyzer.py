@@ -516,70 +516,55 @@ def build_smart_pool():
 
 
 
-# Google Drive 上傳功能 - 使用 OAuth Refresh Token
-def upload_to_google_drive(csv_filename, folder_id="1vPeUEL5K-g8R7sGjLunzvx3hs8iOL5LN"):
-    try:
-        import requests
-        import json as json_lib
-        client_id = os.environ.get("GOOGLE_CLIENT_ID")
-        client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
-        refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN")
-        if not all([client_id, client_secret, refresh_token]):
-            print("WARNING: Missing GOOGLE credentials")
-            return False
 
-        # Get access token
-        token_resp = requests.post("https://oauth2.googleapis.com/token", data={
+# Google Drive 上傳功能 - OAuth Refresh Token
+def upload_to_google_drive(csv_filename, folder_id="1vPeUEL5K-g8R7sGjLunzvx3hs8iOL5LN"):
+    import requests
+    import json as json_lib
+    import email.mime.multipart
+    client_id = os.environ.get("GOOGLE_CLIENT_ID")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+    refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN")
+    if not all([client_id, client_secret, refresh_token]):
+        print("WARNING: Missing GOOGLE credentials")
+        return False
+    try:
+        # Exchange refresh token for access token
+        resp = requests.post("https://oauth2.googleapis.com/token", data={
             "client_id": client_id,
             "client_secret": client_secret,
             "refresh_token": refresh_token,
             "grant_type": "refresh_token"
         }, timeout=15)
-        token_resp.raise_for_status()
-        access_token = token_resp.json()["access_token"]
-
-        # Read file
+        resp.raise_for_status()
+        access_token = resp.json()["access_token"]
+        # Read CSV file
         with open(csv_filename, "rb") as f:
-            file_content = f.read()
-
-        # Build multipart body manually
-        boundary = "----PythonFormBoundary7MA4YWxkTrZu0gW"
-        metadata = json_lib.dumps({"name": csv_filename, "parents": [folder_id]})
-        
-        body_part1 = ("--" + boundary + "
-"
-                     "Content-Type: application/json
-
-"
-                     + metadata + "
-"
-                     "--" + boundary + "
-"
-                     "Content-Type: text/csv
-
-").encode("utf-8")
-        
-        body_part2 = ("
---" + boundary + "--
-").encode("utf-8")
-        body = body_part1 + file_content + body_part2
-
-        headers = {
-            "Authorization": "Bearer " + access_token,
-            "Content-Type": "multipart/related; boundary=" + boundary
-        }
-
-        resp = requests.post(
+            file_data = f.read()
+        # Build multipart request using email library
+        msg = email.mime.multipart.MIMEMultipart("mixed")
+        msg["To"] = folder_id
+        msg["Content-Location"] = csv_filename
+        # Add metadata part
+        meta = json_lib.dumps({"name": csv_filename, "parents": [folder_id]})
+        part_meta = email.mime.text.MIMEText(meta, "application/json", "utf-8")
+        msg.attach(part_meta)
+        # Add file part
+        part_file = email.mime.text.MIMEText(file_data.decode("utf-8", errors="replace"), "text/csv", "utf-8")
+        msg.attach(part_file)
+        # Send to Google Drive API
+        headers = {"Authorization": "Bearer " + access_token}
+        resp2 = requests.post(
             "https://www.googleapis.com/upload/drive/v3/files",
             headers=headers,
-            data=body,
+            data=msg.as_bytes(),
+            params={"uploadType": "multipart"},
             timeout=30
         )
-        resp.raise_for_status()
-        file_id = resp.json().get("id", "unknown")
-        print("DONE: Uploaded " + csv_filename + " to Google Drive, ID: " + file_id)
+        resp2.raise_for_status()
+        result = resp2.json()
+        print("DONE: Uploaded " + csv_filename + " to Google Drive, ID: " + str(result.get("id", "unknown")))
         return True
-
     except Exception as e:
         print("ERROR: Google Drive upload failed: " + str(e))
         return False
