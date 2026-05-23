@@ -550,7 +550,7 @@ def upload_to_google_drive(csv_filename, folder_id='1vPeUEL5K-g8R7sGjLunzvx3hs8i
         ).encode() + file_content + f'\r\n--{boundary}--\r\n'.encode()
 
         headers = {
-            'Authorization': f'Bearer {access_token}',
+            "Authorization": f"Bearer {access_token}",
             "Content-Type": f"multipart/related; boundary={boundary}"
         }
 
