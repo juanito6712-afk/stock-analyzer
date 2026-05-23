@@ -514,23 +514,19 @@ def build_smart_pool():
     print(f"{'='*60}\n")
     print(df_final[["群組", "股票代號", "股票名稱", "收盤價", "市值(億)", "外資持股比率(%)", "漲停標記", "跌停標記"]].head(10).to_string())
 
-# ═══════════════════════════════════════════════════════════════
-# Google Drive 上傳功能 - 自動上傳結果到指定資料夾
-# ═══════════════════════════════════════════════════════════════
-import json
-import requests
 
+
+# Google Drive 上傳功能 - 使用 OAuth Refresh Token
 def upload_to_google_drive(csv_filename, folder_id='1vPeUEL5K-g8R7sGjLunzvx3hs8iOL5LN'):
-    """上傳 CSV 文件到 Google Drive 資料夾（使用 OAuth Refresh Token）"""
     try:
+        import requests, json as json_lib
         client_id = os.environ.get('GOOGLE_CLIENT_ID')
         client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
         refresh_token = os.environ.get('GOOGLE_REFRESH_TOKEN')
         if not all([client_id, client_secret, refresh_token]):
-            print("⚠️ 警告: GOOGLE_CLIENT_ID/CLIENT_SECRET/REFRESH_TOKEN 環境變數未完整設置")
+            print("WARNING: GOOGLE_CLIENT_ID/CLIENT_SECRET/REFRESH_TOKEN not set")
             return False
-        
-        # 用 Refresh Token 取得 Access Token
+
         token_resp = requests.post('https://oauth2.googleapis.com/token', data={
             'client_id': client_id,
             'client_secret': client_secret,
@@ -539,32 +535,25 @@ def upload_to_google_drive(csv_filename, folder_id='1vPeUEL5K-g8R7sGjLunzvx3hs8i
         }, timeout=15)
         token_resp.raise_for_status()
         access_token = token_resp.json()['access_token']
-        
-        # 讀取 CSV 並上傳
+
         with open(csv_filename, 'rb') as f:
             file_content = f.read()
-        
-        import mimetypes
-        mime_type = 'text/csv'
+
         boundary = '----PythonFormBoundary7MA4YWxkTrZu0gW'
-        
-        metadata_json = json.dumps({'name': csv_filename, 'parents': [folder_id]})
+        metadata = json_lib.dumps({'name': csv_filename, 'parents': [folder_id]})
         body = (
-            f'--{boundary}\r
-'
-            f'Content-Type: application/json\r
-\r\n'
-            f'{metadata_json}\r\n'
-            f'--{boundary}\r
-'
-            f'Content-Type: {mime_type}\r\n\r\n'
+            f'--{boundary}\r\n'
+            f'Content-Type: application/json\r\n\r\n'
+            f'{metadata}\r\n'
+            f'--{boundary}\r\n'
+            f'Content-Type: text/csv\r\n\r\n'
         ).encode() + file_content + f'\r\n--{boundary}--\r\n'.encode()
-        
+
         headers = {
             'Authorization': f'Bearer {access_token}',
             'Content-Type': f'multipart/related; boundary={boundary}'
         }
-        
+
         resp = requests.post(
             'https://www.googleapis.com/upload/drive/v3/files',
             headers=headers,
@@ -573,34 +562,17 @@ def upload_to_google_drive(csv_filename, folder_id='1vPeUEL5K-g8R7sGjLunzvx3hs8i
         )
         resp.raise_for_status()
         file_id = resp.json().get('id', 'unknown')
-        
-        # 建立 Drive API 客戶端
-        service = build_service('drive', 'v3', credentials=credentials)
-        
-        # 準備上傳
-        file_metadata = {'name': csv_filename, 'parents': [folder_id]}
-        media = MediaFileUpload(csv_filename, mimetype='text/csv')
-        
-        # 執行上傳
-        file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id'
-        ).execute()
-        
-        print(f"✅ 已成功上傳至 Google Drive: {csv_filename}")
-        print(f"   檔案 ID: {file.get('id')}")
+        print(f"DONE: Uploaded {csv_filename} to Google Drive, ID: {file_id}")
         return True
-        
-    except Exception as e:
-        print(f"❌ Google Drive 上傳失敗: {str(e)}")
-        return False
 
-# 主執行
+    except Exception as e:
+        print(f"ERROR: Google Drive upload failed: {str(e)}")
+        return False
 if __name__ == "__main__":
     build_smart_pool()
-    
-    # 上傳結果至 Google Drive
     today_str = datetime.now().strftime("%Y%m%d")
     csv_filename = f"smart_pool_v3.0_fixed_{today_str}.csv"
+    print("\n" + "="*60)
+    print("  Uploading CSV to Google Drive...")
+    print("="*60)
     upload_to_google_drive(csv_filename)
