@@ -518,25 +518,61 @@ def build_smart_pool():
 # Google Drive 上傳功能 - 自動上傳結果到指定資料夾
 # ═══════════════════════════════════════════════════════════════
 import json
-from google.oauth2 import service_account
-from googleapiclient.discovery import build as build_service
-from googleapiclient.http import MediaFileUpload
+import requests
 
 def upload_to_google_drive(csv_filename, folder_id='1vPeUEL5K-g8R7sGjLunzvx3hs8iOL5LN'):
-    """上傳 CSV 文件到 Google Drive 資料夾"""
+    """上傳 CSV 文件到 Google Drive 資料夾（使用 OAuth Refresh Token）"""
     try:
-        # 從環境變數讀取 Google 認證 (GitHub Actions 會設置)
-        credentials_json = os.environ.get('GOOGLE_CREDENTIALS')
-        if not credentials_json:
-            print("⚠️ 警告: GOOGLE_CREDENTIALS 環境變數未設置")
+        client_id = os.environ.get('GOOGLE_CLIENT_ID')
+        client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
+        refresh_token = os.environ.get('GOOGLE_REFRESH_TOKEN')
+        if not all([client_id, client_secret, refresh_token]):
+            print("⚠️ 警告: GOOGLE_CLIENT_ID/CLIENT_SECRET/REFRESH_TOKEN 環境變數未完整設置")
             return False
         
-        # 解析 JSON 認證
-        credentials_dict = json.loads(credentials_json)
-        credentials = service_account.Credentials.from_service_account_info(
-            credentials_dict,
-            scopes=['https://www.googleapis.com/auth/drive']
+        # 用 Refresh Token 取得 Access Token
+        token_resp = requests.post('https://oauth2.googleapis.com/token', data={
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'refresh_token': refresh_token,
+            'grant_type': 'refresh_token'
+        }, timeout=15)
+        token_resp.raise_for_status()
+        access_token = token_resp.json()['access_token']
+        
+        # 讀取 CSV 並上傳
+        with open(csv_filename, 'rb') as f:
+            file_content = f.read()
+        
+        import mimetypes
+        mime_type = 'text/csv'
+        boundary = '----PythonFormBoundary7MA4YWxkTrZu0gW'
+        
+        metadata_json = json.dumps({'name': csv_filename, 'parents': [folder_id]})
+        body = (
+            f'--{boundary}\r
+'
+            f'Content-Type: application/json\r
+\r\n'
+            f'{metadata_json}\r\n'
+            f'--{boundary}\r
+'
+            f'Content-Type: {mime_type}\r\n\r\n'
+        ).encode() + file_content + f'\r\n--{boundary}--\r\n'.encode()
+        
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': f'multipart/related; boundary={boundary}'
+        }
+        
+        resp = requests.post(
+            'https://www.googleapis.com/upload/drive/v3/files',
+            headers=headers,
+            data=body,
+            timeout=30
         )
+        resp.raise_for_status()
+        file_id = resp.json().get('id', 'unknown')
         
         # 建立 Drive API 客戶端
         service = build_service('drive', 'v3', credentials=credentials)
