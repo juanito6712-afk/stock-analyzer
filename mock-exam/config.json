@@ -1,0 +1,10 @@
+{
+  "webAppUrl": "",
+  "driveRootFolderId": "1N8WleB2LtThXUY4579YiNs9CWv0D5SyA",
+  "driveRootFolderName": "模擬試題",
+  "defaults": {
+    "fullScore": 100,
+    "difficulty": "段考中等",
+    "gradeOwner": { "8": "宇翔", "9": "宇安" }
+  }
+}
