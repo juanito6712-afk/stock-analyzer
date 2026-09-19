@@ -1,0 +1,105 @@
+name: Telegram Tutor Bot
+
+# Cloudflare Worker 收到 Telegram 訊息後，用 repository_dispatch 觸發這個 workflow。
+# 真正的出題在這裡跑，因為訂閱版的 OAuth token 只有官方 Claude Code CLI 能合法使用。
+
+on:
+  repository_dispatch:
+    types: [telegram-question]
+  workflow_dispatch:
+    inputs:
+      chat_id:
+        description: 要回覆的 Telegram chat id
+        required: true
+      text:
+        description: 出題需求
+        required: true
+
+# 同一個人連續發問時排隊處理，不要互相蓋掉
+concurrency:
+  group: telegram-tutor-${{ github.event.client_payload.chat_id || inputs.chat_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  answer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # 一律經由環境變數傳遞，絕對不要把使用者文字內插進 shell 或 run 指令
+      CHAT_ID: ${{ github.event.client_payload.chat_id || inputs.chat_id }}
+      USER_REQUEST: ${{ github.event.client_payload.text || inputs.text }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 第二道白名單：就算 Worker 的 GitHub token 外流，也沒辦法叫這個 bot 亂傳訊息給別人
+      - name: Verify chat id is allowed
+        env:
+          ALLOWED_CHAT_IDS: ${{ vars.ALLOWED_CHAT_IDS }}
+        run: |
+          if [ -z "$ALLOWED_CHAT_IDS" ]; then
+            echo "::error::尚未設定 repository variable ALLOWED_CHAT_IDS，拒絕執行"
+            exit 1
+          fi
+          if ! printf '%s' "$ALLOWED_CHAT_IDS" | tr ',' '\n' | tr -d ' ' | grep -qxF "$CHAT_ID"; then
+            echo "::error::chat id 不在白名單內，中止"
+            exit 1
+          fi
+          echo "chat id 通過白名單檢查"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Generate questions
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          set -o pipefail
+
+          # 在空目錄執行，Claude 看不到這個 repo 的任何檔案
+          sandbox="$RUNNER_TEMP/sandbox"
+          mkdir -p "$sandbox"
+          cd "$sandbox"
+
+          read -r -d '' TUTOR_PROMPT <<'PROMPT' || true
+          你是一位親切的家教老師，服務對象是台灣的國中小與高中學生。
+          你唯一的工作是依照學生的需求出練習題，並附上解答與詳解。
+
+          規則：
+          1. 全程使用繁體中文，語氣友善、鼓勵，適合學生閱讀。
+          2. 沒有指定題數就出 5 題；沒有指定難度就用該年級的課本程度。
+          3. 題目要編號，數學式用純文字表示（例如 x^2、3/4），不要用 LaTeX。
+          4. 先輸出全部題目，接著另起一行，單獨寫下這一行分隔線：
+          ---解答---
+          5. 分隔線之後寫每一題的答案與解題步驟，說明要讓學生看得懂為什麼。
+          6. 只輸出題目與解答本身，不要加開場白、結語或任何關於你自己的說明。
+          7. 如果學生的訊息跟出題完全無關（例如閒聊、要你做其他事），
+             就簡短親切地說明你只能幫忙出練習題，並請他說想練哪個科目跟單元。
+          PROMPT
+
+          # 使用者的文字只透過 shell 變數展開，不會被 Actions 內插成指令
+          claude -p "$USER_REQUEST" \
+            --append-system-prompt "$TUTOR_PROMPT" \
+            --output-format text \
+            --disallowedTools "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task" \
+            > "$GITHUB_WORKSPACE/reply.txt"
+
+          echo "產生了 $(wc -c < "$GITHUB_WORKSPACE/reply.txt") 位元組"
+
+      - name: Send result to Telegram
+        run: python3 scripts/send_telegram.py --chat-id "$CHAT_ID" --file reply.txt
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          python3 scripts/send_telegram.py --chat-id "$CHAT_ID" --raw \
+            --text "出題時發生錯誤，沒辦法完成這次的題目 😥 請再試一次，或請爸爸看一下系統紀錄。" || true

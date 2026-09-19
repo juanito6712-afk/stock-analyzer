@@ -1,0 +1,16 @@
+name = "telegram-tutor"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# 非機密設定放這裡（會進 git，不要放 token）
+[vars]
+# 允許使用機器人的 Telegram user id / chat id，用逗號分隔
+# 留空代表全部拒絕。用 /id 指令可以查到要填什麼。
+ALLOWED_CHAT_IDS = ""
+# 要觸發的 GitHub repo
+GITHUB_REPO = "juanito6712-afk/stock-analyzer"
+
+# 機密用 `wrangler secret put <名稱>` 設定，不要寫在這個檔案：
+#   TELEGRAM_BOT_TOKEN      向 @BotFather 申請的 bot token
+#   TELEGRAM_WEBHOOK_SECRET 自己想一組亂碼，設 webhook 時要用同一組
+#   GITHUB_TOKEN            GitHub PAT，需要 Contents: write 權限
