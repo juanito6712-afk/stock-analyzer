@@ -5,6 +5,29 @@
   "defaults": {
     "fullScore": 100,
     "difficulty": "段考中等",
+    "difficultyMix": { "中等": 0.5, "中上": 0.35, "素養": 0.15 },
+    "maxQuestions": 50,
     "gradeOwner": { "8": "宇翔", "9": "宇安" }
+  },
+  "textbookVersions": {
+    "宇翔": {
+      "grade": "8",
+      "code": "yx-2026",
+      "數學": "南一",
+      "國文": "康軒",
+      "英文": "康軒",
+      "自然": "南一",
+      "理化": "南一",
+      "社會": "翰林",
+      "歷史": "翰林",
+      "地理": "翰林",
+      "公民": "翰林"
+    }
+  },
+  "contactBook": {
+    "宇翔": {
+      "docId": "1KxRVO2JdjhkdmRHtftTsrr6psH30KLWHHUU9-vYAgL0",
+      "url": "https://docs.google.com/document/d/1KxRVO2JdjhkdmRHtftTsrr6psH30KLWHHUU9-vYAgL0"
+    }
   }
 }
