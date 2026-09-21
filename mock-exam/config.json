@@ -7,6 +7,11 @@
     "difficulty": "段考中等",
     "difficultyMix": { "中等": 0.5, "中上": 0.35, "素養": 0.15 },
     "maxQuestions": 50,
+    "timeLimits": {
+      "小考小卷": "20 分鐘（題數 12 題以上時）",
+      "大單元考": "25-30 分鐘",
+      "段考範圍": "40-45 分鐘"
+    },
     "gradeOwner": { "8": "宇翔", "9": "宇安" }
   },
   "textbookVersions": {
