@@ -115,8 +115,9 @@ https://script.google.com/macros/s/AKfycb.../exec?id=20260919-乘法公式&k=yx-
 
 ## 測試
 
-改分邏輯有離線測試，改完 `Code.gs` 可以先跑：
+改分邏輯與網頁導覽都有自動測試，改完程式可以先跑：
 
 ```bash
-node mock-exam/test/grade_test.js
+node mock-exam/test/grade_test.js   # 改分邏輯（Code.gs）
+node mock-exam/test/ui_test.js      # 網頁：主選單→科目→考卷→結果，每頁能回主選單（index.html，需 Chromium）
 ```

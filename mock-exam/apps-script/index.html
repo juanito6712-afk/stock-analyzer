@@ -43,6 +43,28 @@
     border-radius:9px; background:var(--bg); color:var(--ink);
   }
   textarea{min-height:110px; resize:vertical}
+
+  /* 導覽列：每一頁都有「主選單」 */
+  .nav{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px}
+  .nav button{padding:8px 14px; font-size:.92rem}
+  .nav .sp{flex:1}
+
+  /* 主選單：科目卡片 */
+  .subj-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px}
+  .subj-card{
+    display:block; width:100%; text-align:center; padding:20px 10px;
+    background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:14px;
+  }
+  .subj-card:hover{border-color:var(--accent); background:var(--accent-soft)}
+  .subj-card .ico{display:block; font-size:2.1rem; line-height:1.3}
+  .subj-card .nm{display:block; font-weight:700; font-size:1.08rem; margin-top:2px}
+  .subj-card .num{display:block; color:var(--muted); font-size:.85rem}
+
+  /* 科目內：考卷清單 */
+  .exam-list button{display:block; width:100%; text-align:left; background:var(--card);
+    color:var(--ink); border:1px solid var(--line); margin-bottom:8px; padding:13px 15px}
+  .exam-list button:hover{border-color:var(--accent)}
+
   .q{border-top:1px solid var(--line); padding:14px 0}
   .q:first-of-type{border-top:0}
   .q-head{display:flex; gap:8px; align-items:baseline}
@@ -53,12 +75,11 @@
   .opt input{margin-top:6px}
   .fill-in{margin:8px 0 0 2.4em; max-width:320px}
   .open-in{margin:8px 0 0 2.4em}
-  .exam-list button{display:block; width:100%; text-align:left; background:var(--card);
-    color:var(--ink); border:1px solid var(--line); margin-bottom:8px; padding:13px 15px}
-  .exam-list button:hover{border-color:var(--accent)}
   .bar{position:sticky; bottom:0; background:var(--card); border-top:1px solid var(--line);
-    padding:12px 16px; display:flex; gap:10px; align-items:center; justify-content:space-between;
+    padding:10px 16px; display:flex; gap:10px; align-items:center; justify-content:space-between;
     margin:0 -16px -80px; }
+  .bar .home{padding:8px 12px; font-size:.92rem}
+  .bar .muted{flex:1; text-align:center}
   .score{font-size:2.4rem; font-weight:700; color:var(--accent); line-height:1.2}
   .mark{font-weight:700; margin-left:6px}
   .mark.ok{color:var(--right)}
@@ -71,13 +92,13 @@
   .self button.sel{outline:3px solid var(--accent-soft)}
   .err{color:var(--wrong); margin-top:10px}
   .hide{display:none}
-  .chip{display:inline-block; background:var(--accent-soft); color:var(--accent);
-    border-radius:999px; padding:2px 10px; font-size:.82rem; margin-right:6px}
+  .btn-row{display:flex; gap:8px; flex-wrap:wrap}
 </style>
 </head>
 <body>
 <div class="wrap">
 
+  <!-- 登入 -->
   <div id="gate" class="card hide">
     <h1>模擬試題</h1>
     <p class="muted">輸入爸爸給你的作答代碼。</p>
@@ -86,33 +107,65 @@
     <div id="gateErr" class="err"></div>
   </div>
 
-  <div id="list" class="card hide">
-    <h1>可以做的考卷</h1>
-    <p class="muted" id="who"></p>
-    <div class="exam-list" id="exams"></div>
+  <!-- 主選單：先選科目 -->
+  <div id="menu" class="hide">
+    <div class="card">
+      <h1>模擬試題</h1>
+      <p class="muted" id="who"></p>
+      <div class="subj-grid" id="subjects"></div>
+    </div>
+    <p class="muted" style="text-align:center">
+      <button class="ghost" data-act="logout" style="padding:6px 12px;font-size:.85rem">換人／換代碼</button>
+    </p>
   </div>
 
+  <!-- 科目內：再選考卷 -->
+  <div id="subj" class="hide">
+    <div class="nav">
+      <button class="ghost" data-act="home">🏠 主選單</button>
+    </div>
+    <div class="card">
+      <h1 id="subjTitle"></h1>
+      <p class="muted" id="subjMeta"></p>
+      <div class="exam-list" id="exams"></div>
+    </div>
+  </div>
+
+  <!-- 作答 -->
   <div id="exam" class="hide">
+    <div class="nav">
+      <button class="ghost" data-act="home">🏠 主選單</button>
+      <button class="ghost" data-act="subject" id="exSubjBtn"></button>
+      <span class="sp"></span>
+      <span class="muted">進度會自動存在這台裝置</span>
+    </div>
     <div class="card">
       <h1 id="exTitle"></h1>
       <p class="muted" id="exMeta"></p>
     </div>
     <div class="card" id="exBody"></div>
     <div class="bar">
+      <button class="ghost home" data-act="home" title="回主選單">🏠</button>
       <span class="muted" id="progress"></span>
       <button id="submit">交卷</button>
     </div>
   </div>
 
+  <!-- 結果 -->
   <div id="result" class="hide">
+    <div class="nav">
+      <button class="ghost" data-act="home">🏠 主選單</button>
+      <button class="ghost" data-act="subject" id="resSubjBtn"></button>
+    </div>
     <div class="card">
       <div class="score" id="scoreLine"></div>
       <p class="muted" id="scoreMeta"></p>
       <div id="openNote" class="muted hide">非選擇題請自己對照參考答案打分數，按下面的按鈕就會記錄起來。</div>
-      <p>
+      <div class="btn-row" style="margin-top:10px">
         <button id="retryWrong" class="hide">只重做錯的題目</button>
-        <button id="backList" class="ghost">回考卷清單</button>
-      </p>
+        <button class="ghost" data-act="subject" id="resSubjBtn2"></button>
+        <button class="ghost" data-act="home">🏠 回主選單</button>
+      </div>
     </div>
     <div class="card" id="resBody"></div>
   </div>
@@ -123,14 +176,27 @@
   var EXAM_ID = '<?= examId ?>';
   var PRESET  = '<?= presetCode ?>';
 
-  var state = { code:'', student:null, exam:null, answers:{}, result:null, openScores:{}, round:'首次', only:null };
+  var SUBJECT_ORDER = ['國文','英文','數學','理化','地理','歷史','公民','社會'];
+  var SUBJECT_ICON  = {'國文':'📖','英文':'🔤','數學':'📐','理化':'🔬','地理':'🌏','歷史':'📜','公民':'⚖️','社會':'🧭'};
+
+  var state = {
+    code:'', student:null, exams:null, subject:'',
+    exam:null, answers:{}, result:null, openScores:{}, round:'首次', only:null, view:'gate'
+  };
 
   function $(id){ return document.getElementById(id); }
-  function show(id){ ['gate','list','exam','result'].forEach(function(v){ $(v).classList.toggle('hide', v!==id); }); window.scrollTo(0,0); }
+  function show(id){
+    state.view = id;
+    ['gate','menu','subj','exam','result'].forEach(function(v){ $(v).classList.toggle('hide', v!==id); });
+    window.scrollTo(0,0);
+  }
   function esc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
   function typeset(){ if(window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise(); }
 
-  function storeKey(){ return 'mockexam:'+(state.exam?state.exam.id:'')+':'+(state.student?state.student.name:''); }
+  /* 作答草稿：以「考卷＋學生＋首次/重做」為單位，重做錯題的草稿不會混進完整考卷 */
+  function storeKey(){
+    return 'mockexam:'+(state.exam?state.exam.id:'')+':'+(state.student?state.student.name:'')+':'+state.round;
+  }
   function saveLocal(){ try{ localStorage.setItem(storeKey(), JSON.stringify(state.answers)); }catch(e){} }
   function loadLocal(){ try{ var v=localStorage.getItem(storeKey()); return v?JSON.parse(v):{}; }catch(e){ return {}; } }
   function clearLocal(){ try{ localStorage.removeItem(storeKey()); }catch(e){} }
@@ -144,9 +210,10 @@
         $('go').disabled = false;
         state.code = code;
         state.student = res.student;
+        state.exams = res.exams;
         try{ localStorage.setItem('mockexam:code', code); }catch(e){}
-        if (EXAM_ID) { openExam(EXAM_ID); }
-        else { renderList(res.exams); }
+        if (EXAM_ID) { var id = EXAM_ID; EXAM_ID = ''; openExam(id); }
+        else { renderMenu(); }
       })
       .withFailureHandler(function(err){
         $('go').disabled = false;
@@ -156,18 +223,105 @@
       .apiLogin(code);
   }
 
-  function renderList(exams){
-    $('who').textContent = state.student.name + '，選一份開始。';
-    var html = exams.map(function(e){
+  function logout(){
+    try{ localStorage.removeItem('mockexam:code'); }catch(e){}
+    state.code=''; state.student=null; state.exams=null; state.subject='';
+    EXAM_ID=''; PRESET='';
+    $('code').value=''; $('gateErr').textContent='';
+    show('gate');
+  }
+
+  /* 背景重抓考卷清單（新卷子出來時，不用重開網頁就看得到） */
+  function refreshExams(){
+    if (!state.code) return;
+    google.script.run
+      .withSuccessHandler(function(res){
+        state.exams = res.exams;
+        if (state.view === 'menu') renderMenu(true);
+        else if (state.view === 'subj') renderSubject(true);
+      })
+      .withFailureHandler(function(){})
+      .apiLogin(state.code);
+  }
+
+  /* ---------- 導覽 ---------- */
+  function goMenu(){
+    EXAM_ID = '';
+    if (!state.code) { show('gate'); return; }
+    if (state.exams) { renderMenu(); refreshExams(); }
+    else {
+      show('menu'); $('who').textContent = '載入中…'; $('subjects').innerHTML = '';
+      refreshExams();
+    }
+  }
+
+  function goSubject(name){
+    state.subject = name || state.subject;
+    if (!state.exams) { goMenu(); return; }
+    renderSubject(); refreshExams();
+  }
+
+  document.addEventListener('click', function(e){
+    var t = e.target.closest ? e.target.closest('[data-act]') : null;
+    if (!t) return;
+    var a = t.getAttribute('data-act');
+    if (a === 'home') goMenu();
+    else if (a === 'subject' || a === 'pick') goSubject(t.getAttribute('data-subj'));
+    else if (a === 'logout') logout();
+  });
+
+  /* ---------- 主選單：科目 ---------- */
+  function groupBySubject(exams){
+    var map = {};
+    (exams||[]).forEach(function(x){
+      var s = x.subject || '其他';
+      (map[s] = map[s] || []).push(x);
+    });
+    var names = Object.keys(map).sort(function(a,b){
+      var ia = SUBJECT_ORDER.indexOf(a), ib = SUBJECT_ORDER.indexOf(b);
+      if (ia < 0) ia = 99; if (ib < 0) ib = 99;
+      return ia === ib ? a.localeCompare(b) : ia - ib;
+    });
+    return { map: map, names: names };
+  }
+
+  function renderMenu(keepScroll){
+    var g = groupBySubject(state.exams);
+    $('who').textContent = (state.student ? state.student.name : '') + '，先選一個科目。';
+    var html = g.names.map(function(n){
+      return '<button class="subj-card" data-act="pick" data-subj="'+esc(n)+'">'+
+             '<span class="ico">'+(SUBJECT_ICON[n]||'📚')+'</span>'+
+             '<span class="nm">'+esc(n)+'</span>'+
+             '<span class="num">'+g.map[n].length+' 份考卷</span></button>';
+    }).join('');
+    $('subjects').innerHTML = html || '<p class="muted">目前沒有指派給你的考卷。</p>';
+    var y = window.scrollY;
+    show('menu');
+    if (keepScroll) window.scrollTo(0, y);
+  }
+
+  /* ---------- 科目內：考卷清單 ---------- */
+  function renderSubject(keepScroll){
+    var g = groupBySubject(state.exams);
+    var list = (g.map[state.subject] || []).slice().sort(function(a,b){
+      var da = String(a.date||''), db = String(b.date||'');
+      if (da !== db) return db.localeCompare(da);
+      return String(b.id).localeCompare(String(a.id));
+    });
+    $('subjTitle').textContent = (SUBJECT_ICON[state.subject]||'📚') + ' ' + state.subject;
+    $('subjMeta').textContent = list.length ? '共 '+list.length+' 份，新的在最上面。選一份開始。' : '';
+    var html = list.map(function(e){
       return '<button data-id="'+esc(e.id)+'"><strong>'+esc(e.title)+'</strong><br>'+
-             '<span class="muted">'+esc([e.subject,e.grade,e.chapter].filter(Boolean).join('　'))+
+             '<span class="muted">'+esc([e.grade,e.chapter].filter(Boolean).join('　'))+
              (e.date? '　'+esc(e.date):'')+'</span></button>';
     }).join('');
-    $('exams').innerHTML = html || '<p class="muted">目前沒有指派給你的考卷。</p>';
+    $('exams').innerHTML = html || '<p class="muted">這個科目目前沒有考卷。</p>';
     Array.prototype.forEach.call($('exams').querySelectorAll('button'), function(b){
       b.addEventListener('click', function(){ openExam(b.getAttribute('data-id')); });
     });
-    show('list');
+    var y = window.scrollY;
+    show('subj');
+    if (keepScroll) window.scrollTo(0, y);
   }
 
   /* ---------- 作答 ---------- */
@@ -176,17 +330,31 @@
       .withSuccessHandler(function(res){
         state.exam = res.exam;
         state.student = res.student;
-        state.answers = loadLocal();
         state.round = '首次';
         state.only = null;
+        state.subject = res.exam.subject || state.subject;
+        state.answers = loadLocal();
         renderExam();
       })
-      .withFailureHandler(function(err){ alert(err.message || '打不開這份考卷'); show('list'); })
+      .withFailureHandler(function(err){
+        alert(err.message || '打不開這份考卷');
+        if (state.exams) goMenu(); else show('gate');
+      })
       .apiGetExam(state.code, id);
+  }
+
+  function setSubjectButtons(){
+    var label = '‹ ' + (state.subject || '科目');
+    ['exSubjBtn','resSubjBtn','resSubjBtn2'].forEach(function(id){
+      var b = $(id); if (!b) return;
+      b.textContent = label;
+      b.setAttribute('data-subj', state.subject || '');
+    });
   }
 
   function renderExam(){
     var ex = state.exam;
+    setSubjectButtons();
     $('exTitle').textContent = ex.title || ex.chapter || '模擬試題';
     $('exMeta').textContent = [ex.grade, ex.subject, ex.chapter].filter(Boolean).join('　') +
       '　滿分 ' + ex.full + ' 分' + (ex.note ? '　'+ex.note : '');
@@ -270,6 +438,7 @@
   /* ---------- 結果 ---------- */
   function renderResult(){
     var r = state.result;
+    setSubjectButtons();
     var graded = r.items.filter(function(i){ return i.correct !== null; });
     var okCount = graded.filter(function(i){ return i.correct; }).length;
     var opens = r.items.filter(function(i){ return i.correct === null; });
@@ -327,7 +496,7 @@
     $('retryWrong').onclick = function(){
       state.only = wrongKeys;
       state.round = '重做';
-      wrongKeys.forEach(function(k){ delete state.answers[k]; });
+      state.answers = {};
       renderExam();
     };
 
@@ -353,13 +522,6 @@
       .apiRecordOpen(state.code, state.result.attemptId, state.openScores);
   }
 
-  $('backList').addEventListener('click', function(){
-    google.script.run
-      .withSuccessHandler(function(res){ renderList(res.exams); })
-      .withFailureHandler(function(err){ alert(err.message); })
-      .apiLogin(state.code);
-  });
-
   /* ---------- 起動 ---------- */
   $('go').addEventListener('click', function(){ login($('code').value.trim()); });
   $('code').addEventListener('keydown', function(e){ if(e.key==='Enter') login($('code').value.trim()); });
@@ -368,7 +530,7 @@
     var saved = '';
     try{ saved = localStorage.getItem('mockexam:code') || ''; }catch(e){}
     var code = PRESET || saved;
-    if (code){ $('code').value = code; login(code); show('gate'); }
+    if (code){ $('code').value = code; show('gate'); login(code); }
     else { show('gate'); }
   })();
 </script>
