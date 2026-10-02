@@ -146,6 +146,22 @@ function readRoster_() {
 function authStudent_(code) {
   var roster = readRoster_();
   var want = String(code || '').trim().toLowerCase();
+
+  // 點選登入：前端送 "pick:名字"，只認名單裡「可點選」的人（家教學生不會被點到）
+  if (want.indexOf('pick:') === 0) {
+    var who = want.slice(5);
+    if (who === 'guest') {
+      if (roster.open) return { name: '訪客', grade: '', group: '', code: '', guest: true };
+      throw new Error('訪客登入目前沒有開放。');
+    }
+    var list = pickable_(roster);
+    for (var j = 0; j < list.length; j++) {
+      if (String(list[j].name).toLowerCase() === who) {
+        return { name: list[j].name, grade: list[j].grade || '', group: list[j].group || '', code: '' };
+      }
+    }
+    throw new Error('找不到這位使用者。');
+  }
   for (var i = 0; i < roster.students.length; i++) {
     var s = roster.students[i];
     if (s.disabled) continue;
@@ -157,6 +173,28 @@ function authStudent_(code) {
     return { name: want ? want.slice(0, 20) : '訪客', grade: '', group: '', code: '', guest: true };
   }
   throw new Error('代碼不正確，或這組代碼已經停用。');
+}
+
+/**
+ * 可以用「點名字」登入的人：名單裡寫 "pick": true；沒寫 pick 的話，group 是「家裡」就算。
+ * 家教學生（group 不是家裡）一律要輸入代碼，不會出現在點選畫面。
+ */
+function pickable_(roster) {
+  return (roster.students || []).filter(function (s) {
+    if (s.disabled) return false;
+    if (s.pick === true) return true;
+    if (s.pick === false) return false;
+    return s.group === '家裡';
+  });
+}
+
+/** 登入畫面用：只回傳名字與年級，不含代碼 */
+function apiPickList() {
+  var roster = readRoster_();
+  return {
+    students: pickable_(roster).map(function (s) { return { name: s.name, grade: s.grade || '' }; }),
+    guest: !!roster.open
+  };
 }
 
 /** 這位學生能不能做這份考卷（考卷 assign 沒寫 = 全部人都可以） */

@@ -41,14 +41,16 @@ const mockScript = `
       withSuccessHandler: function(f){ ok = f; return api; },
       withFailureHandler: function(f){ fail = f; return api; }
     };
-    ['apiLogin','apiGetExam','apiSubmit','apiRecordOpen'].forEach(function(name){
+    ['apiLogin','apiPickList','apiGetExam','apiSubmit','apiRecordOpen'].forEach(function(name){
       api[name] = function(){
         var args = Array.prototype.slice.call(arguments);
         calls.push(name);
         setTimeout(function(){
           try {
-            if (name === 'apiLogin') {
-              if (args[0] !== 'ok') throw new Error('代碼不正確');
+            if (name === 'apiPickList') {
+              ok({ students:[{ name:'宇翔', grade:'8' }, { name:'宇安', grade:'9' }], guest:true });
+            } else if (name === 'apiLogin') {
+              if (args[0] !== 'ok' && args[0] !== 'pick:宇翔') throw new Error('代碼不正確');
               ok({ student:{ name:'宇翔' }, exams: EXAMS.slice() });
             } else if (name === 'apiGetExam') {
               ok({ student:{ name:'宇翔' }, exam: exam(args[1]) });
@@ -103,6 +105,11 @@ const visible = async (p, id) => !(await p.$eval('#' + id, e => e.classList.cont
   let p = await open('', '');
   check(await visible(p, 'gate'), '沒有代碼 → 先看到登入頁');
 
+  const picks = await p.$$eval('#pickGrid [data-pick]', els => els.map(e => e.getAttribute('data-pick')));
+  check(JSON.stringify(picks) === JSON.stringify(['宇翔', '宇安', 'guest']), '登入頁用點選：宇翔／宇安／訪客：' + picks.join('、'));
+  check(!(await p.isVisible('#code')), '輸入代碼的欄位預設收起來');
+  await p.click('#showCode');
+  check(await p.isVisible('#code'), '點「用代碼進入」才出現輸入欄');
   await p.fill('#code', 'bad');
   await p.click('#go');
   await p.waitForFunction(() => document.getElementById('gateErr').textContent.length > 0);
@@ -112,6 +119,16 @@ const visible = async (p, id) => !(await p.$eval('#' + id, e => e.classList.cont
   await p.click('#go');
   await p.waitForSelector('#menu:not(.hide)');
   check(await visible(p, 'menu'), '正確代碼 → 進入主選單');
+  await p.click('[data-act=logout]');
+  await p.waitForSelector('#pickGrid [data-pick="宇翔"]');
+  await p.click('#pickGrid [data-pick="宇翔"]');
+  await p.waitForSelector('#menu:not(.hide)');
+  check(await visible(p, 'menu') && (await p.textContent('#who')).includes('宇翔'), '點「宇翔」→ 直接進入主選單');
+  await p.click('[data-act=logout]');
+  await p.waitForSelector('#gate:not(.hide)');
+  await p.fill('#code', 'ok');
+  await p.click('#go');
+  await p.waitForSelector('#menu:not(.hide)');
   check(!(await visible(p, 'subj')) && !(await visible(p, 'exam')), '主選單不會同時顯示考卷清單');
 
   const names = await p.$$eval('#subjects .subj-card .nm', els => els.map(e => e.textContent));

@@ -101,9 +101,13 @@
   <!-- 登入 -->
   <div id="gate" class="card hide">
     <h1>模擬試題</h1>
-    <p class="muted">輸入爸爸給你的作答代碼。</p>
-    <input type="text" id="code" autocomplete="off" autocapitalize="none" placeholder="作答代碼">
-    <p><button id="go">進入</button></p>
+    <p class="muted">點你的名字進入。</p>
+    <div class="subj-grid" id="pickGrid"><span class="muted">載入中…</span></div>
+    <p><a href="#" id="showCode" class="muted">用代碼進入（家教同學）</a></p>
+    <div id="codeBox" class="hide">
+      <input type="text" id="code" autocomplete="off" autocapitalize="none" placeholder="作答代碼">
+      <p><button id="go">進入</button></p>
+    </div>
     <div id="gateErr" class="err"></div>
   </div>
 
@@ -189,6 +193,7 @@
     state.view = id;
     ['gate','menu','subj','exam','result'].forEach(function(v){ $(v).classList.toggle('hide', v!==id); });
     window.scrollTo(0,0);
+    if (id==='gate') loadPicks();
   }
   function esc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
   function typeset(){ if(window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise(); }
@@ -202,6 +207,30 @@
   function clearLocal(){ try{ localStorage.removeItem(storeKey()); }catch(e){} }
 
   /* ---------- 登入 ---------- */
+  var picksLoaded = false;
+  function loadPicks(){
+    if (picksLoaded) return;
+    google.script.run
+      .withSuccessHandler(function(res){
+        picksLoaded = true;
+        var tiles = (res.students||[]).map(function(s){
+          return '<button class="subj-card" data-pick="'+esc(s.name)+'">'+
+            '<span class="ico">'+(s.name.slice(0,1))+'</span>'+
+            '<span class="nm">'+esc(s.name)+'</span>'+
+            (s.grade?'<span class="num">'+esc(s.grade)+' 年級</span>':'')+'</button>';
+        });
+        if (res.guest) tiles.push('<button class="subj-card" data-pick="guest">'+
+          '<span class="ico">👤</span><span class="nm">訪客</span><span class="num">不記名</span></button>');
+        if (tiles.length) $('pickGrid').innerHTML = tiles.join('');
+        else { $('pickGrid').innerHTML=''; $('codeBox').classList.remove('hide'); $('showCode').classList.add('hide'); }
+      })
+      .withFailureHandler(function(){
+        $('pickGrid').innerHTML='';
+        $('codeBox').classList.remove('hide'); $('showCode').classList.add('hide');
+      })
+      .apiPickList();
+  }
+
   function login(code){
     $('gateErr').textContent='';
     $('go').disabled = true;
@@ -523,6 +552,13 @@
   }
 
   /* ---------- 起動 ---------- */
+  $('pickGrid').addEventListener('click', function(e){
+    var b = e.target.closest('[data-pick]');
+    if (b) login('pick:' + b.getAttribute('data-pick'));
+  });
+  $('showCode').addEventListener('click', function(e){
+    e.preventDefault(); $('codeBox').classList.remove('hide'); $('showCode').classList.add('hide'); $('code').focus();
+  });
   $('go').addEventListener('click', function(){ login($('code').value.trim()); });
   $('code').addEventListener('keydown', function(e){ if(e.key==='Enter') login($('code').value.trim()); });
 
@@ -530,7 +566,7 @@
     var saved = '';
     try{ saved = localStorage.getItem('mockexam:code') || ''; }catch(e){}
     var code = PRESET || saved;
-    if (code){ $('code').value = code; show('gate'); login(code); }
+    if (code){ if (code.indexOf('pick:')!==0) $('code').value = code; show('gate'); login(code); }
     else { show('gate'); }
   })();
 </script>
