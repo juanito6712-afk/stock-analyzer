@@ -1,11 +1,11 @@
 // 考卷 JSON 上傳前檢查。出完題、傳 Drive 之前先跑：
 //   node mock-exam/test/validate_exam.js <考卷.json> [更多.json ...]
 // 會擋下：JSON 語法錯誤、缺欄位、選擇題答案索引超出範圍、填充題沒有答案、SVG 標籤沒成對。
-// 會警告：滿分不是 100、難度比例偏離 50/35/15、沒標作答時間、沒有 assign。
+// 會警告：滿分不是 100、難度比例偏離 35/45/20、沒標作答時間、沒有 assign。
 const fs = require('fs');
 
 const LEVELS = ['中等', '中上', '素養'];
-const TARGET = { 中等: 0.5, 中上: 0.35, 素養: 0.15 };
+const TARGET = { 中等: 0.35, 中上: 0.45, 素養: 0.2 };
 let exitCode = 0;
 
 function check(file) {

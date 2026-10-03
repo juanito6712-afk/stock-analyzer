@@ -5,7 +5,7 @@
   "defaults": {
     "fullScore": 100,
     "difficulty": "段考中等",
-    "difficultyMix": { "中等": 0.5, "中上": 0.35, "素養": 0.15 },
+    "difficultyMix": { "中等": 0.35, "中上": 0.45, "素養": 0.2 },
     "maxQuestions": 50,
     "timeLimits": {
       "小考小卷": "20 分鐘（題數 12 題以上時）",
