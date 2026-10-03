@@ -112,7 +112,7 @@ function resetProgress() {
 
 /** 回傳 {year, subject, school, exam, kind}；不屬於 113/114 的 社會／自然 就回 null */
 function classify_(l) {
-  var s = decodeURIComponent((l.text || '') + ' ' + l.href.split('/').pop());
+  var s = (l.text || '') + ' ' + safeDecode_(l.href.split('/').pop());
   var year = null;
   CFG.YEARS.forEach(function (y) { if (s.indexOf(y) >= 0) year = year || y; });
   if (!year) return null;
@@ -148,7 +148,7 @@ function saveToDrive_(l, meta) {
   var resp = UrlFetchApp.fetch(l.href, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': CFG.BASE } });
   if (resp.getResponseCode() !== 200) throw new Error('HTTP ' + resp.getResponseCode());
   var blob = resp.getBlob();
-  var orig = decodeURIComponent(l.href.split('?')[0].split('/').pop() || 'file');
+  var orig = safeDecode_(l.href.split('?')[0].split('/').pop() || 'file');
   var name = base + '_' + orig;
   if (exists_(folder, name)) return null;
   blob.setName(name);
@@ -207,6 +207,8 @@ function isFile_(href) {
 function isSubPage_(href) {
   return href.indexOf('melances.com') >= 0 && href.indexOf('/grade9') >= 0 && !isFile_(href);
 }
+
+function safeDecode_(x) { try { return decodeURIComponent(x); } catch (e) { return x; } }
 
 function clearTriggers_() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
